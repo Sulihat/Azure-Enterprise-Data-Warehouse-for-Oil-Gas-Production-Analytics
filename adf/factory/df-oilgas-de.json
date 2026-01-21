@@ -1,0 +1,9 @@
+{
+	"name": "df-oilgas-de",
+	"location": "northeurope",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "14bc2717-28a3-4601-9ffa-6340dff74d3b",
+		"tenantId": "7085725b-f01d-4d02-ad1c-b1a8a6f44106"
+	}
+}
