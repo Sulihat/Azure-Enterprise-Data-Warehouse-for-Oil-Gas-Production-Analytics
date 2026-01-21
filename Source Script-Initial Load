@@ -1,0 +1,165 @@
+
+-- FIELD TABLE
+
+CREATE TABLE Field (
+    FieldID INT IDENTITY PRIMARY KEY,
+    FieldCode VARCHAR(20),
+    FieldName VARCHAR(100),
+    HydrocarbonType VARCHAR(20),   -- Oil, Gas, Oil & Gas
+    Location VARCHAR(100),
+    OnshoreOffshore VARCHAR(20),
+    DiscoveryYear INT
+);
+
+INSERT INTO Field (FieldCode, FieldName, HydrocarbonType, Location, OnshoreOffshore, DiscoveryYear)
+VALUES
+('OML30', 'Ughelli East', 'Oil & Gas', 'Delta State', 'Onshore', 1964),
+('OML34', 'Utorogu', 'Gas', 'Delta State', 'Onshore', 1978),
+('OML40', 'Okan', 'Oil', 'Rivers State', 'Onshore', 1965);
+
+
+-- FACILITY TABLE
+
+CREATE TABLE Facility (
+    FacilityID INT IDENTITY PRIMARY KEY,
+    FacilityName VARCHAR(100),
+    FacilityType VARCHAR(50),       -- FPSO, Gas Plant, Flow Station
+    FieldID INT,
+    FOREIGN KEY (FieldID) REFERENCES Field(FieldID)
+);
+
+INSERT INTO Facility (FacilityName, FacilityType, FieldID)
+VALUES
+('Ughelli Flow Station', 'Flow Station', 1),
+('Trans Niger FPSO', 'FPSO', 1),
+('Utorogu Gas Plant', 'Gas Processing Plant', 2),
+('Okan Central Flow Station', 'Flow Station', 3),
+('Okan Gas Compression Facility', 'Gas Plant', 3);
+
+
+-- WELL TABLE
+
+CREATE TABLE Well (
+    WellID INT IDENTITY PRIMARY KEY,
+    WellName VARCHAR(50),
+    WellType VARCHAR(30),            -- Production
+    FieldID INT,
+    FacilityID INT,
+    Status VARCHAR(20),
+    FOREIGN KEY (FieldID) REFERENCES Field(FieldID),
+    FOREIGN KEY (FacilityID) REFERENCES Facility(FacilityID)
+);
+
+INSERT INTO Well (WellName, WellType, FieldID, FacilityID, Status)
+VALUES
+-- Ughelli
+('UG-01', 'Production', 1, 1, 'Active'),
+('UG-02', 'Production', 1, 1, 'Active'),
+('UG-03', 'Production', 1, 2, 'Active'),
+('UG-04', 'Production', 1, 2, 'Active'),
+('UG-05', 'Production', 1, 1, 'Active'),
+
+-- Utorogu (Gas)
+('UT-01', 'Production', 2, 3, 'Active'),
+('UT-02', 'Production', 2, 3, 'Active'),
+('UT-03', 'Production', 2, 3, 'Active'),
+('UT-04', 'Production', 2, 3, 'Active'),
+('UT-05', 'Production', 2, 3, 'Active'),
+
+-- Okan
+('OK-01', 'Production', 3, 4, 'Active'),
+('OK-02', 'Production', 3, 4, 'Active'),
+('OK-03', 'Production', 3, 5, 'Active'),
+('OK-04', 'Production', 3, 5, 'Active'),
+('OK-05', 'Production', 3, 4, 'Active');
+
+-- ACTUAL PRODUCTION TABLE
+
+CREATE TABLE ActualProduction (
+    ActualProductionID BIGINT IDENTITY PRIMARY KEY,
+    ProductionDate DATE,
+    WellID INT,
+    ProductType VARCHAR(20),         -- Oil / Gas
+    VolumeProduced DECIMAL(18,2),
+    UnitOfMeasure VARCHAR(10),
+    OperatingHours INT,
+    FOREIGN KEY (WellID) REFERENCES Well(WellID)
+);
+
+WITH DateSeries AS (
+    SELECT CAST('2022-01-01' AS DATE) AS ProductionDate
+    UNION ALL
+    SELECT DATEADD(DAY, 1, ProductionDate)
+    FROM DateSeries
+    WHERE ProductionDate < CAST(GETDATE() AS DATE)
+)
+INSERT INTO ActualProduction
+(ProductionDate, WellID, ProductType, VolumeProduced, UnitOfMeasure, OperatingHours)
+SELECT
+    d.ProductionDate,
+    w.WellID,
+    CASE 
+        WHEN f.HydrocarbonType = 'Gas' THEN 'Gas'
+        ELSE 'Oil'
+    END,
+    CASE 
+        WHEN f.HydrocarbonType = 'Gas' 
+            THEN ROUND(20 + RAND(CHECKSUM(NEWID())) * 10, 2)
+        ELSE 
+            ROUND(800 + RAND(CHECKSUM(NEWID())) * 500, 2)
+    END,
+    CASE 
+        WHEN f.HydrocarbonType = 'Gas' THEN 'mmscf'
+        ELSE 'bbl'
+    END,
+    22
+FROM DateSeries d
+CROSS JOIN Well w
+JOIN Field f ON w.FieldID = f.FieldID
+OPTION (MAXRECURSION 0);
+
+
+-- TARGET (EXPECTED) PRODUCTION TABLE
+
+CREATE TABLE TargetProduction (
+    TargetProductionID BIGINT IDENTITY PRIMARY KEY,
+    ProductionDate DATE,
+    WellID INT,
+    ProductType VARCHAR(20),
+    ExpectedVolume DECIMAL(18,2),
+    UnitOfMeasure VARCHAR(10),
+    PlannedOperatingHours INT,
+    FOREIGN KEY (WellID) REFERENCES Well(WellID)
+);
+
+WITH DateSeries AS (
+    SELECT CAST('2022-01-01' AS DATE) AS ProductionDate
+    UNION ALL
+    SELECT DATEADD(DAY, 1, ProductionDate)
+    FROM DateSeries
+    WHERE ProductionDate < CAST(GETDATE() AS DATE)
+)
+INSERT INTO TargetProduction
+(ProductionDate, WellID, ProductType, ExpectedVolume, UnitOfMeasure, PlannedOperatingHours)
+SELECT
+    d.ProductionDate,
+    w.WellID,
+    CASE 
+        WHEN f.HydrocarbonType = 'Gas' THEN 'Gas'
+        ELSE 'Oil'
+    END,
+    CASE 
+        WHEN f.HydrocarbonType = 'Gas' THEN 30.00
+        ELSE 1200.00
+    END,
+    CASE 
+        WHEN f.HydrocarbonType = 'Gas' THEN 'mmscf'
+        ELSE 'bbl'
+    END,
+    24
+FROM DateSeries d
+CROSS JOIN Well w
+JOIN Field f ON w.FieldID = f.FieldID
+OPTION (MAXRECURSION 0);
+
+
