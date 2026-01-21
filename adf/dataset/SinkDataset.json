@@ -1,0 +1,21 @@
+{
+	"name": "SinkDataset",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "SinkAdls",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "ActualProd",
+				"folderPath": "ActualProduction",
+				"fileSystem": "raw"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	}
+}
