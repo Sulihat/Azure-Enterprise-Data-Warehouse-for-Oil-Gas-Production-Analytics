@@ -1,0 +1,27 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "df-oilgas-de"
+		},
+		"SinkAdls_accountKey": {
+			"value": ""
+		},
+		"sourcedb_password": {
+			"value": ""
+		},
+		"SinkAdls_properties_typeProperties_url": {
+			"value": "https://oilgasprod.dfs.core.windows.net/"
+		},
+		"sourcedb_properties_typeProperties_server": {
+			"value": "oilgas-sql-server.database.windows.net"
+		},
+		"sourcedb_properties_typeProperties_database": {
+			"value": "OilGas_ProductionDB"
+		},
+		"sourcedb_properties_typeProperties_userName": {
+			"value": "sqladminuser"
+		}
+	}
+}
