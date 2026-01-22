@@ -3,202 +3,370 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Lookup1",
-				"type": "Lookup",
+				"name": "ForEachTable",
+				"type": "ForEach",
 				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
 				"userProperties": [],
 				"typeProperties": {
-					"source": {
-						"type": "JsonSource",
-						"storeSettings": {
-							"type": "AzureBlobFSReadSettings",
-							"recursive": true,
-							"enablePartitionDiscovery": false
+					"items": {
+						"value": "@pipeline().parameters.Loop_input",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Copy data1",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "currentTimestamp",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "Lookup1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@concat(\n  'SELECT * FROM ',\n  item().SchemaName, '.', item().TableName,\n  ' WHERE ',\n  item().Wm_col,\n  ' > ''',\n  activity('Lookup1').output.value[0].cdc,\n  ''''\n)\n",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "ParquetSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "ParquetWriteSettings"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "sourceDB",
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": "dbo",
+										"TableName": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										},
+										"Wm_col": {
+											"value": "@item().Wm_col",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "adlsdataset",
+									"type": "DatasetReference",
+									"parameters": {
+										"container": "raw",
+										"Folder": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										},
+										"File": {
+											"value": "@concat(item().TableName, '_', variables('current_timestamp'))",
+											"type": "Expression"
+										}
+									}
+								}
+							]
 						},
-						"formatSettings": {
-							"type": "JsonReadSettings"
-						}
-					},
-					"dataset": {
-						"referenceName": "cdc_dataset",
-						"type": "DatasetReference"
-					},
-					"firstRowOnly": false
-				}
-			},
-			{
-				"name": "Copy data1",
-				"type": "Copy",
-				"dependsOn": [
-					{
-						"activity": "Lookup1",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "currentTimestamp",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderQuery": {
-							"value": "@concat(\n  'SELECT * FROM ',\n  pipeline().parameters.SchemaName, '.', pipeline().parameters.TableName,\n  ' WHERE ',\n  pipeline().parameters.Wm_col,\n  ' > ''',\n  activity('Lookup1').output.value[0].cdc,\n  ''''\n)\n",
-							"type": "Expression"
+						{
+							"name": "currentTimestamp",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "current_timestamp",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								}
+							}
 						},
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"sink": {
-						"type": "ParquetSink",
-						"storeSettings": {
-							"type": "AzureBlobFSWriteSettings"
+						{
+							"name": "Lookup1",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "cdc_dataset",
+									"type": "DatasetReference",
+									"parameters": {
+										"Container": "cdc",
+										"Folder": {
+											"value": "@{item().TableName}_cdc",
+											"type": "Expression"
+										},
+										"FileName": {
+											"value": "@{item().TableName}_cdc",
+											"type": "Expression"
+										}
+									}
+								},
+								"firstRowOnly": false
+							}
 						},
-						"formatSettings": {
-							"type": "ParquetWriteSettings"
-						}
-					},
-					"enableStaging": false,
-					"translator": {
-						"type": "TabularTranslator",
-						"typeConversion": true,
-						"typeConversionSettings": {
-							"allowDataTruncation": true,
-							"treatBooleanAsNumber": false
-						}
-					}
-				},
-				"inputs": [
-					{
-						"referenceName": "sourceDB",
-						"type": "DatasetReference",
-						"parameters": {
-							"SchemaName": "dbo",
-							"TableName": "ActualProduction",
-							"Wm_col": "ProductionDate"
-						}
-					}
-				],
-				"outputs": [
-					{
-						"referenceName": "adlsdataset",
-						"type": "DatasetReference",
-						"parameters": {
-							"container": "raw",
-							"Folder": "ActualProduction",
-							"File": {
-								"value": "@concat(pipeline().parameters.TableName, '_', variables('current_timestamp'))",
-								"type": "Expression"
+						{
+							"name": "IfNewRecords",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Copy data1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@greater(activity('Copy data1').output.dataRead, 0)",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "DeleteEmptyFile",
+										"type": "Delete",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"dataset": {
+												"referenceName": "adlsdataset",
+												"type": "DatasetReference",
+												"parameters": {
+													"container": "raw",
+													"Folder": {
+														"value": "@item().TableName",
+														"type": "Expression"
+													},
+													"File": {
+														"value": "@concat(item().TableName,'_',variables('current_timestamp'))",
+														"type": "Expression"
+													}
+												}
+											},
+											"enableLogging": false,
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											}
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "update cdc",
+										"type": "Copy",
+										"dependsOn": [
+											{
+												"activity": "max_cdc",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "JsonSource",
+												"additionalColumns": [
+													{
+														"name": "cdc",
+														"value": {
+															"value": "@activity('max_cdc').output.resultsets[0].rows[0].cdc",
+															"type": "Expression"
+														}
+													}
+												],
+												"storeSettings": {
+													"type": "AzureBlobFSReadSettings",
+													"recursive": true,
+													"enablePartitionDiscovery": false
+												},
+												"formatSettings": {
+													"type": "JsonReadSettings"
+												}
+											},
+											"sink": {
+												"type": "JsonSink",
+												"storeSettings": {
+													"type": "AzureBlobFSWriteSettings"
+												},
+												"formatSettings": {
+													"type": "JsonWriteSettings"
+												}
+											},
+											"enableStaging": false
+										},
+										"inputs": [
+											{
+												"referenceName": "cdc_dataset",
+												"type": "DatasetReference",
+												"parameters": {
+													"Container": "cdc",
+													"Folder": {
+														"value": "@{item().TableName}_cdc",
+														"type": "Expression"
+													},
+													"FileName": "Empty_cdc"
+												}
+											}
+										],
+										"outputs": [
+											{
+												"referenceName": "cdc_dataset",
+												"type": "DatasetReference",
+												"parameters": {
+													"Container": "cdc",
+													"Folder": {
+														"value": "@{item().TableName}_cdc",
+														"type": "Expression"
+													},
+													"FileName": {
+														"value": "@{item().TableName}_cdc",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									},
+									{
+										"name": "max_cdc",
+										"type": "Script",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"linkedServiceName": {
+											"referenceName": "sourcedb",
+											"type": "LinkedServiceReference"
+										},
+										"typeProperties": {
+											"scripts": [
+												{
+													"type": "Query",
+													"text": {
+														"value": "SELECT MAX(@{item().Wm_col}) as cdc FROM @{item().SchemaName}.@{item().TableName}",
+														"type": "Expression"
+													}
+												}
+											],
+											"scriptBlockExecutionTimeout": "02:00:00"
+										}
+									}
+								]
 							}
 						}
-					}
-				]
-			},
-			{
-				"name": "currentTimestamp",
-				"type": "SetVariable",
-				"dependsOn": [],
-				"policy": {
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"variableName": "current_timestamp",
-					"value": {
-						"value": "@utcNow()",
-						"type": "Expression"
-					}
+					]
 				}
-			},
-			{
-				"name": "update cdc file",
-				"type": "Copy",
-				"dependsOn": [
-					{
-						"activity": "Copy data1",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "JsonSource",
-						"storeSettings": {
-							"type": "AzureBlobFSReadSettings",
-							"recursive": true,
-							"enablePartitionDiscovery": false
-						},
-						"formatSettings": {
-							"type": "JsonReadSettings"
-						}
-					},
-					"sink": {
-						"type": "ParquetSink",
-						"storeSettings": {
-							"type": "AzureBlobFSWriteSettings"
-						},
-						"formatSettings": {
-							"type": "ParquetWriteSettings"
-						}
-					},
-					"enableStaging": false
-				},
-				"inputs": [
-					{
-						"referenceName": "cdc_dataset",
-						"type": "DatasetReference",
-						"parameters": {
-							"Container": "cdc",
-							"Folder": "ActualProd_cdc"
-						}
-					}
-				],
-				"outputs": [
-					{
-						"referenceName": "adlsdataset",
-						"type": "DatasetReference"
-					}
-				]
 			}
 		],
 		"parameters": {
-			"SchemaName": {
-				"type": "string"
-			},
-			"TableName": {
-				"type": "string"
-			},
-			"Wm_col": {
-				"type": "string"
+			"Loop_input": {
+				"type": "array",
+				"defaultValue": [
+					{
+						"SchemaName": "dbo",
+						"TableName": "ActualProduction",
+						"Wm_col": "ProductionDate"
+					},
+					{
+						"SchemaName": "dbo",
+						"TableName": "TargetProduction",
+						"Wm_col": "ProductionDate"
+					},
+					{
+						"SchemaName": "dbo",
+						"TableName": "Facility",
+						"Wm_col": "UpdatedAt"
+					},
+					{
+						"SchemaName": "dbo",
+						"TableName": "Field",
+						"Wm_col": "UpdatedAt"
+					},
+					{
+						"SchemaName": "dbo",
+						"TableName": "Well",
+						"Wm_col": "UpdatedAt"
+					}
+				]
 			}
 		},
 		"variables": {
